@@ -24,18 +24,27 @@ if (!empty($_FILES)) {
         }
 
         $login = 'Test1';
-        //получаем id авторизованного пользователя
-        $stmt = $userIDTemp->execute();
-        //$result= $stmt->FETCH(PDO::FETCH_ASSOC);
-        $userID = $stmt->fetchColumn();
+        $login = "Test1";
+        $login = $db->quote($login);
+        $sql = "SELECT id FROM users WHERE login = $login";
+        $userIDTemp = $db->query($sql);
+        $userID = $userIDTemp->fetchColumn(0);
 
-        $newName = date("mdy").'_'.$userID;
-        $filePath = UPLOAD_DIR . '/' . basename($fileName);
+        $stmt = $db->query("SELECT MAX(id) FROM files");
+        $last_id = $stmt->fetchColumn();
+
+        if ($last_id === null) {
+            $newName = date("mdy").'_1';
+        } else {
+            $newName = date("mdy").'_'.$userID;
+        }
+        
+        $filePath = UPLOAD_DIR . '/' . $newName;
  
-        // if (!move_uploaded_file($_FILES['files']['tmp_name'][$i], $filePath)) {
-        //     $errors[] = 'Ошибка загрузки файла ' . $fileName;
-        //     continue;
-        // }
+        if (!move_uploaded_file($_FILES['files']['tmp_name'][$i], $filePath)) {
+            $errors[] = 'Ошибка загрузки файла ' . $fileName;
+            continue;
+        }
         
     }
 }
