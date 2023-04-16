@@ -22,21 +22,23 @@ if (!empty($_FILES)) {
             $errors[] = 'Недопустимый формат файла ' . $fileName;
             continue;
         }
-
-        $login = 'Test1';
+        //Получаем Логин и ид пользователя
         $login = "Test1";
         $login = $db->quote($login);
         $sql = "SELECT id FROM users WHERE login = $login";
         $userIDTemp = $db->query($sql);
         $userID = $userIDTemp->fetchColumn(0);
 
+        //получаем ид послднего заруженного файла
         $stmt = $db->query("SELECT MAX(id) FROM files");
         $last_id = $stmt->fetchColumn();
+        //расширение загружаемого файла
+        $fileExt = pathinfo($fileName, PATHINFO_EXTENSION);
 
         if ($last_id === null) {
-            $newName = date("mdy").'_1';
+            $newName = date("dmy").'_1.'.$fileExt;
         } else {
-            $newName = date("mdy").'_'.$userID;
+            $newName = date("dmy").'_'.$last_id .'.'.$fileExt;
         }
         
         $filePath = UPLOAD_DIR . '/' . $newName;
@@ -45,10 +47,28 @@ if (!empty($_FILES)) {
             $errors[] = 'Ошибка загрузки файла ' . $fileName;
             continue;
         }
-        
+        //добавялем в бд данные о загруженном файле
+        $sql = "INSERT INTO files (user_id, filename) VALUES ('$userID', '$newName')";
+        $db->query($sql);
+        header('Location: index.php');
+        exit();
     }
+    
 }
- 
+
+if(isset($_POST['image_id'])) {
+    $fileName = $_POST['image_id'];
+    $filePath = UPLOAD_DIR . '/' . $fileName;
+    @unlink($filePath);
+    
+    $sql= "DELETE FROM files WHERE filename = '$fileName'";
+    $db->query($sql);
+    
+    // перенаправление на страницу с галереей
+    header('Location: index.php');
+    exit();
+}
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -56,11 +76,33 @@ if (!empty($_FILES)) {
   <title>Моя галерея изображений</title>
   <!-- Подключение Bootstrap -->
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> -->
+  <!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
+  <link rel="stylesheet" href="./index.css" />
 </head>
 <body>
-
+    <nav class="navbar navbar-inverse">
+        <div class="container-fluid">
+            <!-- логотип -->
+            <div class="navbar-header">
+                <a class="navbar-brand" href="#">Logo</a>
+            </div>
+            <!-- кнопка-гамбургер для мобильной версии -->
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <!-- пункты меню -->
+            <div class="collapse navbar-collapse" id="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                <li><a href="#">Sign in</a></li>
+                <li><a href="#" class="btn btn-primary">Sign up</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
   <div class="container">
     <h2>Моя галерея изображений</h2>
 
@@ -81,15 +123,45 @@ if (!empty($_FILES)) {
       foreach ($chunks as $chunk) {
         echo '<div class="row">';
         foreach ($chunk as $file) {
-          echo '<div class="col-md-3">';
-          echo '<img src="'.$dir.$file.'" class="img-responsive" alt="'.$file.'">';
-          echo '<input type="text" class="form-control" placeholder="Введите комментарий">';
-          echo '</div>';
+        ?>
+        <div class="col-md-3">
+            <div class="thumbnail">
+                <img src="<?php echo $dir.$file?>" class="img-responsive" alt="<?php echo $file ?>">
+                <form method="post">
+                    <input type="hidden" name="image_id" value="'.$file.'">
+                    <button type="submit" name="delete_image">Удалить</button>
+                </form>
+                <?php 
+                    $sql = "SELECT login FROM users WHERE id = (SELECT user_id FROM files WHERE filename = '$file')";
+                    $stmt = $db->query($sql);
+                    $imgUser = $stmt->fetchColumn();
+                    $sql = "SELECT upload_date FROM files WHERE filename = '$file'";
+                    $stmt = $db->query($sql);
+                    //$imgUpload = $stmt->fetchColumn();
+                    $imgUploadDate = date_create($stmt->fetchColumn());
+                ?>
+                <div class="thumbnail" id="comments-block">
+                    <div class="row">
+                        <div class="col-12 col-md-7"><?php echo $imgUser.':' ?></div>
+                        <div class="col-6 col-md-4" id="comment-date"><?php echo date_format($imgUploadDate, "d.m.y H:i") ?></div>
+                        <div></div>
+                    </div>
+                    <!-- <span>sdsdsdsdf dfgdfgdg dgfdgdgd dfgdgdfgd dgdgdgf dgdgdg d</span>
+                    <hr>
+                    <p>fdfdfdf</p> -->
+                </div>
+                <div class="form-group">
+                    <!-- <label for="comment">Комментарии:</label> -->
+                    <textarea class="form-control" rows="1" id="comment" name="comment" placeholder="Введите комментарий" required></textarea>
+                </div>
+            </div>
+            <!-- <input type="text" class="form-control" placeholder="Введите комментарий"> -->
+        </div>
+        <?php
         }
         echo '</div>';
       }
     ?>
-
   </div>
   <div class="container pt-4">
     <h1 class="mb-4">Загрузка файлов</h1>
@@ -120,9 +192,38 @@ if (!empty($_FILES)) {
         <hr>
         <button type="submit" class="btn btn-primary">Загрузить</button>
         <a href="<?php echo URL; ?>" class="btn btn-secondary ml-3">Сброс</a>
+       
     </form>
 </div>
- 
+<!-- <div class="container">
+    <h2>Комментарии пользователей</h2>
+    <form method="post">
+        <div class="form-group">
+            <label for="name">Имя:</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="comment">Комментарий:</label>
+            <textarea class="form-control" rows="5" id="comment" name="comment" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Отправить</button>
+    </form>
+</div> -->
+
 <div class='message-div message-div_hidden' id='message-div'></div>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  <!-- <script>
+    $(document).ready(function() {
+      // обработчик нажатия на кнопку "Удалить"
+      $('.delete-btn').click(function() {
+        var id = $(this).data('id');
+        $.post(window.location.href, {deleteid: id}, function() {
+          location.reload();
+        }); -->
 </body>
 </html>

@@ -1,0 +1,6 @@
+.container-fluid {
+    border: 4px;
+}
+#comment-date {
+    width: 30%;
+}
