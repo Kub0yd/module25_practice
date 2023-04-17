@@ -1,10 +1,25 @@
 <?php
 include "db_conf.php"; 
+include "functions.php";
+
 define('URL', './'); // URL текущей страницы
 define('UPLOAD_MAX_SIZE', 1000000); // 1mb
 define('ALLOWED_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
 define('UPLOAD_DIR', 'images');
- 
+
+if (isset($_COOKIE['id']) and isset($_COOKIE['hash'])) {
+    $userData = getUserById($_COOKIE['id']);
+    if (($userData['user_hash'] !== $_COOKIE['hash']) or ($userData['id'] !== $_COOKIE['id'])) {
+
+        setcookie("id", "", time() - 3600*24*30*12, "/");
+        setcookie("hash", "", time() - 3600*24*30*12, "/", null, null, true); // httponly !!!
+        echo "<script>alert(\"Что-то пошло не так с авторизацией.. Попробуйте повторить вход\");</script>";
+    }
+    else {
+        $auth = true;
+    }
+}
+
 $errors = [];
  
 if (!empty($_FILES)) {
@@ -22,14 +37,9 @@ if (!empty($_FILES)) {
             $errors[] = 'Недопустимый формат файла ' . $fileName;
             continue;
         }
-        //Получаем Логин и ид пользователя
-        $login = "Test1";
-        $login = $db->quote($login);
-        $sql = "SELECT id FROM users WHERE login = $login";
-        $userIDTemp = $db->query($sql);
-        $userID = $userIDTemp->fetchColumn(0);
-
-        //получаем ид послднего заруженного файла
+        //Получаем ид пользователя
+        $userID = $_COOKIE['id'];
+        //получаем ид последнего загруженного файла
         $stmt = $db->query("SELECT MAX(id) FROM files");
         $last_id = $stmt->fetchColumn();
         //расширение загружаемого файла
@@ -68,7 +78,11 @@ if(isset($_POST['image_id'])) {
     header('Location: index.php');
     exit();
 }
-
+if(isset($_POST['sign_out'])) {
+    setcookie("id", "", time() - 3600*24*30*12, "/");
+    setcookie("hash", "", time() - 3600*24*30*12, "/", null, null, true); // httponly !!!
+    header("Location: ./"); exit();
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -97,8 +111,14 @@ if(isset($_POST['image_id'])) {
             <!-- пункты меню -->
             <div class="collapse navbar-collapse" id="navbar-collapse">
                 <ul class="nav navbar-nav navbar-right">
-                <li><a href="#">Sign in</a></li>
-                <li><a href="#" class="btn btn-primary">Sign up</a></li>
+                <?php if (!$auth) {?>
+                <li><a href="./login.php">Sign in</a></li>
+                <li><a href="./login.php" class="btn btn-primary">Sign up</a></li>
+                <?php } else {?>
+                <form action="./" method="post">
+                <button type="submit" class="btn btn-primary" name="sign_out" formaction="index.php">Sign OUT</button>
+                </form>
+                <?php } ?>
                 </ul>
             </div>
         </div>
@@ -127,17 +147,24 @@ if(isset($_POST['image_id'])) {
         <div class="col-md-3">
             <div class="thumbnail">
                 <img src="<?php echo $dir.$file?>" class="img-responsive" alt="<?php echo $file ?>">
+                <?php 
+                    if ($auth)
+                     {
+                        $imgUploadUser = getUserById($_COOKIE["id"]);
+
+                        // if ()
+                ?>
                 <form method="post">
                     <input type="hidden" name="image_id" value="'.$file.'">
                     <button type="submit" name="delete_image">Удалить</button>
                 </form>
                 <?php 
+                    }
                     $sql = "SELECT login FROM users WHERE id = (SELECT user_id FROM files WHERE filename = '$file')";
                     $stmt = $db->query($sql);
                     $imgUser = $stmt->fetchColumn();
                     $sql = "SELECT upload_date FROM files WHERE filename = '$file'";
                     $stmt = $db->query($sql);
-                    //$imgUpload = $stmt->fetchColumn();
                     $imgUploadDate = date_create($stmt->fetchColumn());
                 ?>
                 <div class="thumbnail" id="comments-block">
@@ -146,9 +173,6 @@ if(isset($_POST['image_id'])) {
                         <div class="col-6 col-md-4" id="comment-date"><?php echo date_format($imgUploadDate, "d.m.y H:i") ?></div>
                         <div></div>
                     </div>
-                    <!-- <span>sdsdsdsdf dfgdfgdg dgfdgdgd dfgdgdfgd dgdgdgf dgdgdg d</span>
-                    <hr>
-                    <p>fdfdfdf</p> -->
                 </div>
                 <div class="form-group">
                     <!-- <label for="comment">Комментарии:</label> -->
