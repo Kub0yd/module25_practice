@@ -1,7 +1,8 @@
 <?php
 include "db_conf.php"; 
 include "functions.php";
-
+session_start();
+$auth = $_SESSION['auth'] ?? null;  //переменная для отметки авторизованного пользователя
 define('URL', './'); // URL текущей страницы
 define('UPLOAD_MAX_SIZE', 1000000); // 1mb
 define('ALLOWED_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
@@ -11,12 +12,14 @@ if (isset($_COOKIE['id']) and isset($_COOKIE['hash'])) {
     $userData = getUserById($_COOKIE['id']);
     if (($userData['user_hash'] !== $_COOKIE['hash']) or ($userData['id'] !== $_COOKIE['id'])) {
 
-        setcookie("id", "", time() - 3600*24*30*12, "/");
-        setcookie("hash", "", time() - 3600*24*30*12, "/", null, null, true); // httponly !!!
+        unsetAll();
+        // unset($_SESSION['auth']);
+        
         echo "<script>alert(\"Что-то пошло не так с авторизацией.. Попробуйте повторить вход\");</script>";
+        header('Location: ./index.php');  
     }
     else {
-        $auth = true;
+         $auth = $_SESSION['auth'] ?? null; 
     }
 }
 
@@ -79,8 +82,7 @@ if(isset($_POST['image_id'])) {
     exit();
 }
 if(isset($_POST['sign_out'])) {
-    setcookie("id", "", time() - 3600*24*30*12, "/");
-    setcookie("hash", "", time() - 3600*24*30*12, "/", null, null, true); // httponly !!!
+   unsetAll();
     header("Location: ./"); exit();
 }
 ?>

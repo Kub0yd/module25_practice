@@ -46,8 +46,16 @@ function getUserHash($login){
 }
 function getFileDataByName($filename){
     include "db_conf.php";
+}
+function unsetAll(){
+    setcookie("id", "", time() - 3600*24*30*12, "/");
+    setcookie("hash", "", time() - 3600*24*30*12, "/", null, null, true); // httponly !!!
+    // if (isset($_SESSION['auth']))
+    // {
+    //     unset($_SESSION['auth']);  
+    // }
+    unset($_SESSION['auth']); 
+}
 
     
-
-}
 ?>

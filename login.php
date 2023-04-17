@@ -2,6 +2,13 @@
     include "db_conf.php";
     include "functions.php";
 
+    session_start();
+    $auth = $_SESSION['auth'] ?? null;
+    //если пользователь авторизован его перкидывает на главную страницу
+    if ($auth) {
+      header("Location: ./index.php");
+    }
+
 if(isset($_POST['registration']))
 {   
     echo "user: ".$_POST['username'];
@@ -61,6 +68,7 @@ if(isset($_POST['login']))
         setcookie("id", getUserId($login), time()+60*60*24*30, "/");
         setcookie("hash", $hash, time()+60*60*24*30, "/", null, null, true); // httponly !!! 
         // Переадресовываем браузер на страницу проверки нашего скрипта
+        $_SESSION['auth'] = true; 
         header("Location: index.php"); exit();
     }
     else
