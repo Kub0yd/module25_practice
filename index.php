@@ -69,7 +69,7 @@ if (!empty($_FILES)) {
     
 }
 
-if(isset($_POST['image_id'])) {
+if(isset($_POST['delete_image'])) {
     $fileName = $_POST['image_id'];
     $filePath = UPLOAD_DIR . '/' . $fileName;
     @unlink($filePath);
@@ -85,6 +85,17 @@ if(isset($_POST['sign_out'])) {
    unsetAll();
     header("Location: ./"); exit();
 }
+if (isset($_POST['add_comment'])){
+    
+    $user_id = $_COOKIE['id'];
+    $comment = $_POST['add_comment'];
+    $file_id = $_POST['image_id'];
+    echo $file_id;
+    echo "<br>";
+    $sql = "INSERT INTO comments (user_id, comment, file_id) VALUES ('$user_id', '$comment', '$file_id')";
+    $db->query($sql);
+    header("Location: ./"); exit();
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -95,6 +106,8 @@ if(isset($_POST['sign_out'])) {
   <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> -->
   <!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
   <link rel="stylesheet" href="./index.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css" />
+
 </head>
 <body>
     <nav class="navbar navbar-inverse">
@@ -104,18 +117,17 @@ if(isset($_POST['sign_out'])) {
                 <a class="navbar-brand" href="#">Logo</a>
             </div>
             <!-- кнопка-гамбургер для мобильной версии -->
-            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+            <!-- <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
                 <span class="sr-only">Toggle navigation</span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
-            </button>
+            </button> -->
             <!-- пункты меню -->
             <div class="collapse navbar-collapse" id="navbar-collapse">
                 <ul class="nav navbar-nav navbar-right">
                 <?php if (!$auth) {?>
-                <li><a href="./login.php">Sign in</a></li>
-                <li><a href="./login.php" class="btn btn-primary">Sign up</a></li>
+                <li><a href="./login.php" class="btn btn-secondary">Войти</a></li>
                 <?php } else {?>
                 <form action="./" method="post">
                 <button type="submit" class="btn btn-primary" name="sign_out" formaction="index.php">Sign OUT</button>
@@ -139,49 +151,74 @@ if(isset($_POST['sign_out'])) {
       $files = array_slice($files, 2);
 
       // Разбиваем массив файлов на массивы по 4 элемента
-      $chunks = array_chunk($files, 4);
+      $chunks = array_chunk(array_reverse($files), 3);
 
       // Выводим каждый ряд изображений и комментариев
       foreach ($chunks as $chunk) {
         echo '<div class="row">';
         foreach ($chunk as $file) {
-        ?>
-        <div class="col-md-3">
-            <div class="thumbnail">
-                <img src="<?php echo $dir.$file?>" class="img-responsive" alt="<?php echo $file ?>">
-                <?php 
-                    if ($auth)
-                     {
-                        $imgUploadUser = getUserById($_COOKIE["id"]);
+            $fileData = getFileDataByName($file);
+            $userUploadId = $fileData['user_id'];
+            $fileId = $fileData['id'];
 
-                        // if ()
+            $comments = getCommentsByFile($fileId);
+            
+        ?>
+        <div class="col-md-4">
+            <div class="thumbnail">
+                <a data-fancybox="gallery" href="<?php echo $dir.$file?>">
+                <img src="<?php echo $dir.$file?>" class="img-fluid" alt="<?php echo $file ?>">
+                </a>
+                <?php 
+                    if ($auth && $userUploadId == $_COOKIE["id"])
+                     {
+                        
                 ?>
                 <form method="post">
-                    <input type="hidden" name="image_id" value="'.$file.'">
-                    <button type="submit" name="delete_image">Удалить</button>
+                    <input type="hidden" name="delete_image" value="<?php echo $file ?>">
+                    <button type="submit" name="delete">Удалить</button>
                 </form>
                 <?php 
                     }
-                    $sql = "SELECT login FROM users WHERE id = (SELECT user_id FROM files WHERE filename = '$file')";
-                    $stmt = $db->query($sql);
-                    $imgUser = $stmt->fetchColumn();
-                    $sql = "SELECT upload_date FROM files WHERE filename = '$file'";
-                    $stmt = $db->query($sql);
-                    $imgUploadDate = date_create($stmt->fetchColumn());
                 ?>
                 <div class="thumbnail" id="comments-block">
-                    <div class="row">
-                        <div class="col-12 col-md-7"><?php echo $imgUser.':' ?></div>
-                        <div class="col-6 col-md-4" id="comment-date"><?php echo date_format($imgUploadDate, "d.m.y H:i") ?></div>
-                        <div></div>
+                    <h3>Комментарии:</h3>
+                    <?php 
+                        if ($comments){
+                            foreach ($comments as $comment){
+                            $commentUser = getUserById($comment['user_id']);
+                            $commentText = $comment['comment'];
+                            $commentDate = date_create($comment['create_date']);
+                    ?>
+                    <div class="container">
+                        <div class="row">
+                            <div class="col col-md-2"><?php echo $commentUser['login'].':'; ?></div>
+                            <div class="col col-md-4" id="comment-date"><?php echo date_format($commentDate, "d.m.y H:i"); ?></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12"><?php echo $commentText;?></div>
+                        </div>    
                     </div>
+                    
+                    <?php
+                        }
+                           }?>
                 </div>
-                <div class="form-group">
-                    <!-- <label for="comment">Комментарии:</label> -->
-                    <textarea class="form-control" rows="1" id="comment" name="comment" placeholder="Введите комментарий" required></textarea>
-                </div>
+                <form action="<?php echo URL; ?>" method="post">
+                    <div class="form-group">
+                        <?php 
+                            if ($auth) {
+
+                        ?>
+                        <input type="hidden" name="image_id" value="<?php echo $fileId ?>">
+                        <input class="form-control" type="text" rows="1" id="comment" name="add_comment" placeholder="Оставьте комментарий" required>
+                        <button type="submit" class="btn btn-primary" name="upload_comment">Отправить</button>
+                        <?php } else{ ?>
+                        <a href="./login.php" class="btn btn-primary">Войти для возможности комментирования</a>
+                        <?php } ?>
+                    </div>
+                </form>
             </div>
-            <!-- <input type="text" class="form-control" placeholder="Введите комментарий"> -->
         </div>
         <?php
         }
@@ -204,8 +241,9 @@ if(isset($_POST['sign_out'])) {
  
     <?php if (!empty($_FILES) && empty($errors)): ?>
         <div class="alert alert-success">Файлы успешно загружены</div>
-    <?php endif; ?>
- 
+    <?php endif; 
+          if ($auth){ 
+    ?>
     <form action="<?php echo URL; ?>" method="post" enctype="multipart/form-data">
         <div class="custom-file">
             <input type="file" class="custom-file-input" name="files[]" id="customFile" multiple required>
@@ -218,38 +256,17 @@ if(isset($_POST['sign_out'])) {
         <hr>
         <button type="submit" class="btn btn-primary">Загрузить</button>
         <a href="<?php echo URL; ?>" class="btn btn-secondary ml-3">Сброс</a>
-       
     </form>
+    <?php }else {?>
+    <h3>Авторизуйтесь для возможности загрузки изображений</h3>
+    <?php } ?>
 </div>
-<!-- <div class="container">
-    <h2>Комментарии пользователей</h2>
-    <form method="post">
-        <div class="form-group">
-            <label for="name">Имя:</label>
-            <input type="text" class="form-control" id="name" name="name" required>
-        </div>
-        <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" class="form-control" id="email" name="email" required>
-        </div>
-        <div class="form-group">
-            <label for="comment">Комментарий:</label>
-            <textarea class="form-control" rows="5" id="comment" name="comment" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Отправить</button>
-    </form>
-</div> -->
 
 <div class='message-div message-div_hidden' id='message-div'></div>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-  <!-- <script>
-    $(document).ready(function() {
-      // обработчик нажатия на кнопку "Удалить"
-      $('.delete-btn').click(function() {
-        var id = $(this).data('id');
-        $.post(window.location.href, {deleteid: id}, function() {
-          location.reload();
-        }); -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
+
 </body>
 </html>

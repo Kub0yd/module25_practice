@@ -22,7 +22,7 @@ function getUserById($id){
     include "db_conf.php";
 
     $id = $db->quote($id);
-    $sql = "SELECT id, password, user_hash FROM users WHERE id = $id";
+    $sql = "SELECT id, login, password, user_hash FROM users WHERE id = $id";
     $result = $db->query($sql)->FETCH(PDO::FETCH_ASSOC);
 
     return $result;
@@ -41,11 +41,17 @@ function getUserId($login){
 }
 function getUserHash($login){
 
+    $result = getUserByLogin($login);
 
     return $result['user_hash'];
 }
 function getFileDataByName($filename){
     include "db_conf.php";
+
+    $sql = "SELECT id, user_id, filename, upload_date FROM files WHERE filename = '$filename'";
+    $result = $db->query($sql)->FETCH(PDO::FETCH_ASSOC);
+
+    return $result;
 }
 function unsetAll(){
     setcookie("id", "", time() - 3600*24*30*12, "/");
@@ -56,6 +62,13 @@ function unsetAll(){
     // }
     unset($_SESSION['auth']); 
 }
+function getCommentsByFile($id){
+    include "db_conf.php";
 
+    $sql = "SELECT user_id, comment, create_date FROM comments WHERE file_id = $id";
+    $result = $db->query($sql)->FETCHALL(PDO::FETCH_ASSOC);
+
+    return $result;
+}
     
 ?>
