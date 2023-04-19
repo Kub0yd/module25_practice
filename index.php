@@ -1,32 +1,36 @@
 <?php
 include "db_conf.php"; 
 include "functions.php";
+
 session_start();
 $auth = $_SESSION['auth'] ?? null;  //переменная для отметки авторизованного пользователя
 define('URL', './'); // URL текущей страницы
 define('UPLOAD_MAX_SIZE', 1000000); // 1mb
 define('ALLOWED_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
-define('UPLOAD_DIR', 'images');
+define('UPLOAD_DIR', 'upload');
 
+//проверяем пришедшие со страницы аутентификации куки
 if (isset($_COOKIE['id']) and isset($_COOKIE['hash'])) {
+    //получаем информацию о юзере через id
     $userData = getUserById($_COOKIE['id']);
+    //если хэш или id не совпадают, стираем все куки и сессии
     if (($userData['user_hash'] !== $_COOKIE['hash']) or ($userData['id'] !== $_COOKIE['id'])) {
 
         unsetAll();
-        // unset($_SESSION['auth']);
         
         echo "<script>alert(\"Что-то пошло не так с авторизацией.. Попробуйте повторить вход\");</script>";
         header('Location: ./index.php');  
     }
     else {
+        //ставим отметку авторизованного пользователя
          $auth = $_SESSION['auth'] ?? null; 
     }
 }
 
 $errors = [];
- 
-if (!empty($_FILES)) {
- 
+//проверка на переданные файлы 
+if (!empty($_FILES) && $auth) {
+    //перебираем файлы в массиве
     for ($i = 0; $i < count($_FILES['files']['name']); $i++) {
  
         $fileName = $_FILES['files']['name'][$i];
@@ -40,14 +44,15 @@ if (!empty($_FILES)) {
             $errors[] = 'Недопустимый формат файла ' . $fileName;
             continue;
         }
-        //Получаем ид пользователя
+
+        //Получаем id пользователя
         $userID = $_COOKIE['id'];
-        //получаем ид последнего загруженного файла
+        //получаем доступный id из бд
         $stmt = $db->query("SELECT MAX(id) FROM files");
         $last_id = $stmt->fetchColumn();
         //расширение загружаемого файла
         $fileExt = pathinfo($fileName, PATHINFO_EXTENSION);
-
+        //формируем новое название файла в формате dmy_`id`
         if ($last_id === null) {
             $newName = date("dmy").'_1.'.$fileExt;
         } else {
@@ -63,20 +68,24 @@ if (!empty($_FILES)) {
         //добавялем в бд данные о загруженном файле
         $sql = "INSERT INTO files (user_id, filename) VALUES ('$userID', '$newName')";
         $db->query($sql);
-        header('Location: index.php');
-        exit();
+        
     }
-    
+    unset($_FILES);
 }
 
 if(isset($_POST['delete_image'])) {
-    $fileName = $_POST['image_id'];
+    $fileName = $_POST['delete_image'];
     $filePath = UPLOAD_DIR . '/' . $fileName;
     @unlink($filePath);
-    
+
+    $sql= "DELETE FROM comments WHERE file_id = (SELECT id FROM files WHERE filename = '$fileName' )";
+    $db->query($sql);
+
     $sql= "DELETE FROM files WHERE filename = '$fileName'";
     $db->query($sql);
     
+    
+
     // перенаправление на страницу с галереей
     header('Location: index.php');
     exit();
@@ -88,13 +97,23 @@ if(isset($_POST['sign_out'])) {
 if (isset($_POST['add_comment'])){
     
     $user_id = $_COOKIE['id'];
-    $comment = $_POST['add_comment'];
+    $comment = $db->quote($_POST['add_comment']);
     $file_id = $_POST['image_id'];
     echo $file_id;
     echo "<br>";
-    $sql = "INSERT INTO comments (user_id, comment, file_id) VALUES ('$user_id', '$comment', '$file_id')";
+    $sql = "INSERT INTO comments (user_id, comment, file_id) VALUES ('$user_id', $comment, '$file_id')";
     $db->query($sql);
     header("Location: ./"); exit();
+}
+if(isset($_POST['delete-comment'])) {
+    
+    $commentId = $_POST['delete-comment'];
+    $sql = "DELETE FROM comments WHERE id='$commentId'";
+    $db->query($sql);
+    
+    // перенаправление на страницу с галереей
+    header('Location: index.php');
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -102,12 +121,13 @@ if (isset($_POST['add_comment'])){
 <head>
   <title>Моя галерея изображений</title>
   <!-- Подключение Bootstrap -->
+  <link rel="stylesheet" href="style/index.css" />
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
   <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> -->
   <!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
-  <link rel="stylesheet" href="./index.css" />
+ 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css" />
-
+    
 </head>
 <body>
     <nav class="navbar navbar-inverse">
@@ -116,21 +136,13 @@ if (isset($_POST['add_comment'])){
             <div class="navbar-header">
                 <a class="navbar-brand" href="#">Logo</a>
             </div>
-            <!-- кнопка-гамбургер для мобильной версии -->
-            <!-- <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-            </button> -->
-            <!-- пункты меню -->
             <div class="collapse navbar-collapse" id="navbar-collapse">
                 <ul class="nav navbar-nav navbar-right">
                 <?php if (!$auth) {?>
                 <li><a href="./login.php" class="btn btn-secondary">Войти</a></li>
                 <?php } else {?>
                 <form action="./" method="post">
-                <button type="submit" class="btn btn-primary" name="sign_out" formaction="index.php">Sign OUT</button>
+                <button type="submit" class="btn btn-primary" name="sign_out" id="logo" formaction="index.php">ВЫЙТИ</button>
                 </form>
                 <?php } ?>
                 </ul>
@@ -142,7 +154,7 @@ if (isset($_POST['add_comment'])){
 
     <?php
       // Путь к папке с изображениями
-      $dir = "images/";
+      $dir = UPLOAD_DIR."/";
 
       // Получаем список файлов в папке
       $files = scandir($dir);
@@ -172,7 +184,6 @@ if (isset($_POST['add_comment'])){
                 <?php 
                     if ($auth && $userUploadId == $_COOKIE["id"])
                      {
-                        
                 ?>
                 <form method="post">
                     <input type="hidden" name="delete_image" value="<?php echo $file ?>">
@@ -186,18 +197,35 @@ if (isset($_POST['add_comment'])){
                     <?php 
                         if ($comments){
                             foreach ($comments as $comment){
-                            $commentUser = getUserById($comment['user_id']);
+                            $commentUserId = $comment['user_id'];
+                            $commentUser = getUserById($commentUserId);
                             $commentText = $comment['comment'];
                             $commentDate = date_create($comment['create_date']);
+                            $commentId = $comment['id'];
                     ?>
-                    <div class="container">
+                    <div id="comments">
                         <div class="row">
-                            <div class="col col-md-2"><?php echo $commentUser['login'].':'; ?></div>
-                            <div class="col col-md-4" id="comment-date"><?php echo date_format($commentDate, "d.m.y H:i"); ?></div>
+                            <div class="col col-md-7"><?php echo $commentUser['login'].':'; ?></div>
+                            <div class="col col-md-5" id="comment-date"><?php echo date_format($commentDate, "d.m.y H:i"); ?></div>
                         </div>
                         <div class="row">
-                            <div class="col-12"><?php echo $commentText;?></div>
-                        </div>    
+                            <div class="col col-md-10 comment-text" ><?php echo $commentText;?></div>
+                            <?php 
+                                if ($auth && $commentUserId == $_COOKIE["id"])
+                                {   
+                            ?>
+                            <div class="col col-md-1">
+                                <form method="post">
+                                    <input type="hidden" name="delete-comment" value="<?php echo $commentId ?>">
+                                    <button type="submit"><span class="glyphicon glyphicon-trash"></span></button>
+                                </form>
+                            </div>
+                            
+                            <?php 
+                                }
+                            ?>
+                        </div> 
+                        
                     </div>
                     
                     <?php

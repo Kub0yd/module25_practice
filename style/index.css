@@ -1,0 +1,11 @@
+body {
+    background-image:url("./images/5595315.jpg") ;
+}
+  #logo{
+    margin-top: 8px;
+  }  
+  #comments{
+        border-top: 1px solid #ddd;
+        margin-top: 10px;
+    }
+

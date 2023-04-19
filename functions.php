@@ -56,16 +56,12 @@ function getFileDataByName($filename){
 function unsetAll(){
     setcookie("id", "", time() - 3600*24*30*12, "/");
     setcookie("hash", "", time() - 3600*24*30*12, "/", null, null, true); // httponly !!!
-    // if (isset($_SESSION['auth']))
-    // {
-    //     unset($_SESSION['auth']);  
-    // }
     unset($_SESSION['auth']); 
 }
 function getCommentsByFile($id){
     include "db_conf.php";
 
-    $sql = "SELECT user_id, comment, create_date FROM comments WHERE file_id = $id";
+    $sql = "SELECT id, user_id, comment, create_date FROM comments WHERE file_id = '$id'";
     $result = $db->query($sql)->FETCHALL(PDO::FETCH_ASSOC);
 
     return $result;

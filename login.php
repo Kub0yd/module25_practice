@@ -11,7 +11,6 @@
 
 if(isset($_POST['registration']))
 {   
-    echo "user: ".$_POST['username'];
     $err = [];
     // проверяем логин
     if(!preg_match("/^[a-zA-Z0-9]+$/",$_POST['username']))
@@ -39,8 +38,8 @@ if(isset($_POST['registration']))
         $db->query($sql);
 
         echo "<script>alert(\"Вы успешно зарегистрировались!\");</script>";
-        // header("Location: index.php"); 
-        // exit();
+
+
     }
     else
     {
@@ -48,6 +47,7 @@ if(isset($_POST['registration']))
         foreach($err AS $error)
         {
             print $error."<br>";
+
         }
     }
     
@@ -76,19 +76,7 @@ if(isset($_POST['login']))
         print "Вы ввели неправильный логин/пароль";
     }
 }
-$login = 'Test4';
-$password = password_hash('qwerty', PASSWORD_DEFAULT);
-$passwordTest2 = getUserPassword('Test4');
-echo "<br>";
-echo $password;
-echo "<br>";
-echo $passwordTest2;
-echo "<br>";
-echo  'password check:'.password_verify('qwerty', $passwordTest2);
-echo "<br>";
 
-// echo var_dump(getUserByLogin($login));
-// echo getUserPassword($login);
 ?>
 
 <!DOCTYPE html>
