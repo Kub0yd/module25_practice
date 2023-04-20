@@ -49,14 +49,14 @@ if (!empty($_FILES) && $auth) {
         $userID = $_COOKIE['id'];
         //получаем доступный id из бд
         $stmt = $db->query("SELECT MAX(id) FROM files");
-        $last_id = $stmt->fetchColumn();
+        $last_id = $stmt->fetchColumn() + 1;
         //расширение загружаемого файла
         $fileExt = pathinfo($fileName, PATHINFO_EXTENSION);
         //формируем новое название файла в формате dmy_`id`
         if ($last_id === null) {
             $newName = date("dmy").'_1.'.$fileExt;
         } else {
-            $newName = date("dmy").'_'.$last_id .'.'.$fileExt;
+            $newName = date("dmy").'_'.$last_id.'.'.$fileExt;
         }
         
         $filePath = UPLOAD_DIR . '/' . $newName;
@@ -70,7 +70,7 @@ if (!empty($_FILES) && $auth) {
         $db->query($sql);
         
     }
-    unset($_FILES);
+    // unset($_FILES);
 }
 
 if(isset($_POST['delete_image'])) {
