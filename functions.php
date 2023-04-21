@@ -1,5 +1,5 @@
 <?php
-
+//генерация случйного кода
 function generateCode($length=6) {
     $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHI JKLMNOPRQSTUVWXYZ0123456789";
     $code = "";
@@ -9,6 +9,7 @@ function generateCode($length=6) {
     }
     return $code;
 } 
+//получаем все записи пользователя по логину
 function getUserByLogin($login){
     include "db_conf.php";
 
@@ -18,6 +19,7 @@ function getUserByLogin($login){
 
     return $result;
 }
+//получаем все записи пользователя по id
 function getUserById($id){
     include "db_conf.php";
 
@@ -27,24 +29,27 @@ function getUserById($id){
 
     return $result;
 }
+//получаем пароль пользователя по логину
 function getUserPassword($login){
 
     $result = getUserByLogin($login);
     return $result['password'];
 }
-
+//получаем id пользователя по логину
 function getUserId($login){
 
     $result = getUserByLogin($login);
 
     return $result['id'];
 }
+//получаем хэш пользователя по логину
 function getUserHash($login){
 
     $result = getUserByLogin($login);
 
     return $result['user_hash'];
 }
+//получаем все записи по файлу по его наименованию
 function getFileDataByName($filename){
     include "db_conf.php";
 
@@ -53,11 +58,13 @@ function getFileDataByName($filename){
 
     return $result;
 }
+//стирает все куки и сессии
 function unsetAll(){
     setcookie("id", "", time() - 3600*24*30*12, "/");
     setcookie("hash", "", time() - 3600*24*30*12, "/", null, null, true); // httponly !!!
     unset($_SESSION['auth']); 
 }
+//получаем все комментарии к изображению по id файла
 function getCommentsByFile($id){
     include "db_conf.php";
 

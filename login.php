@@ -8,7 +8,7 @@
     if ($auth) {
       header("Location: ./index.php");
     }
-
+//обработчик регистрации
 if(isset($_POST['registration']))
 {   
     $err = [];
@@ -52,6 +52,7 @@ if(isset($_POST['registration']))
     }
     
 }
+//обработчик входа на сайт
 if(isset($_POST['login']))
 {
     //сравниваем введенный пароль, и пароль в бд
@@ -72,8 +73,9 @@ if(isset($_POST['login']))
         header("Location: index.php"); exit();
     }
     else
-    {
-        print "Вы ввели неправильный логин/пароль";
+    {   
+      echo "<script>alert(\"Вы ввели неправильный логин/пароль!\");</script>";
+
     }
 }
 
@@ -84,47 +86,7 @@ if(isset($_POST['login']))
   <head>
     <meta charset="UTF-8">
     <title>Авторизация</title>
-    <style>
-      body {
-        background-color: #F5F5F5;
-        font-family: Arial, sans-serif;
-      }
-      
-      form {
-        background-color: #FFFFFF;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.2);
-        padding: 20px;
-        width: 300px;
-        margin: 50px auto;
-      }
-      
-      input[type="text"],
-      input[type="password"] {
-        border: none;
-        border-radius: 5px;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        font-size: 16px;
-        margin-bottom: 10px;
-        padding: 10px;
-        width: 100%;
-      }
-      
-      input[type="submit"] {
-        background-color: #4CAF50;
-        border: none;
-        border-radius: 5px;
-        color: #FFFFFF;
-        cursor: pointer;
-        font-size: 16px;
-        padding: 10px;
-        width: 100%;
-      }
-      
-      input[type="submit"]:hover {
-        background-color: #3E8E41;
-      }
-    </style>
+    <link rel="stylesheet" href="style/login.css" />
   </head>
   <body>
     <form method="post">

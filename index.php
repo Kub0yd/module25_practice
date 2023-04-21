@@ -34,7 +34,7 @@ if (!empty($_FILES) && $auth) {
     for ($i = 0; $i < count($_FILES['files']['name']); $i++) {
  
         $fileName = $_FILES['files']['name'][$i];
-        echo $filename['name'];
+        //записываем ошибки в $errors
         if ($_FILES['files']['size'][$i] > UPLOAD_MAX_SIZE) {
             $errors[] = 'Недопустимый размер файла ' . $fileName;
             continue;
@@ -68,46 +68,52 @@ if (!empty($_FILES) && $auth) {
         //добавялем в бд данные о загруженном файле
         $sql = "INSERT INTO files (user_id, filename) VALUES ('$userID', '$newName')";
         $db->query($sql);
+
         
     }
-    // unset($_FILES);
-}
 
+
+}
+//обработчик удаления изображения
 if(isset($_POST['delete_image'])) {
+    //удаляем файл из директории
     $fileName = $_POST['delete_image'];
     $filePath = UPLOAD_DIR . '/' . $fileName;
     @unlink($filePath);
-
+    //удаляем комментарии к файлу из бд
     $sql= "DELETE FROM comments WHERE file_id = (SELECT id FROM files WHERE filename = '$fileName' )";
     $db->query($sql);
-
+    //удаляем записи по файлу из бд
     $sql= "DELETE FROM files WHERE filename = '$fileName'";
     $db->query($sql);
     
-    
-
     // перенаправление на страницу с галереей
     header('Location: index.php');
     exit();
 }
+//обработчик разлогинивания (если такое слово есть:)
 if(isset($_POST['sign_out'])) {
-   unsetAll();
-    header("Location: ./"); exit();
+    unsetAll();
+    header("Location: ./"); 
+    exit();
 }
+//обработчик добавления комментария к изображению
 if (isset($_POST['add_comment'])){
     
     $user_id = $_COOKIE['id'];
+    //экранируем ввод
     $comment = $db->quote($_POST['add_comment']);
     $file_id = $_POST['image_id'];
-    echo $file_id;
-    echo "<br>";
+    //добавляем в бд данные о комментарии (id пользователя; текст; id файла)
     $sql = "INSERT INTO comments (user_id, comment, file_id) VALUES ('$user_id', $comment, '$file_id')";
     $db->query($sql);
     header("Location: ./"); exit();
 }
+//обработчик удаления комментария
 if(isset($_POST['delete-comment'])) {
     
     $commentId = $_POST['delete-comment'];
+    //ищем запись по переданному id и удаляем
     $sql = "DELETE FROM comments WHERE id='$commentId'";
     $db->query($sql);
     
@@ -120,12 +126,8 @@ if(isset($_POST['delete-comment'])) {
 <html>
 <head>
   <title>Моя галерея изображений</title>
-  <!-- Подключение Bootstrap -->
   <link rel="stylesheet" href="style/index.css" />
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> -->
-  <!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
- 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css" />
     
 </head>
@@ -134,8 +136,9 @@ if(isset($_POST['delete-comment'])) {
         <div class="container-fluid">
             <!-- логотип -->
             <div class="navbar-header">
-                <a class="navbar-brand" href="#">Logo</a>
+                <a class="navbar-brand" href="#">Gallery</a>
             </div>
+            <!-- вывод кнопок в зависимости от проверки на авторизацию -->
             <div class="collapse navbar-collapse" id="navbar-collapse">
                 <ul class="nav navbar-nav navbar-right">
                 <?php if (!$auth) {?>
@@ -153,6 +156,7 @@ if(isset($_POST['delete-comment'])) {
     <h2>Моя галерея изображений</h2>
 
     <?php
+      // Обработчик вывода изображений
       // Путь к папке с изображениями
       $dir = UPLOAD_DIR."/";
 
@@ -162,18 +166,18 @@ if(isset($_POST['delete-comment'])) {
       // Удаляем первые два элемента массива (".", "..")
       $files = array_slice($files, 2);
 
-      // Разбиваем массив файлов на массивы по 4 элемента
+      // Разбиваем массив файлов на массивы по 3 элемента (хочу, чтобы изображения выводились в ряд по 3 элемента)
       $chunks = array_chunk(array_reverse($files), 3);
 
-      // Выводим каждый ряд изображений и комментариев
+      // Выводим каждый ряд изображений и комментарии к ним
       foreach ($chunks as $chunk) {
         echo '<div class="row">';
         foreach ($chunk as $file) {
-            $fileData = getFileDataByName($file);
+            $fileData = getFileDataByName($file);    // получаем все записи по изображению из бд по названию файла
             $userUploadId = $fileData['user_id'];
             $fileId = $fileData['id'];
 
-            $comments = getCommentsByFile($fileId);
+            $comments = getCommentsByFile($fileId);  // получаем все комментарии к изображению
             
         ?>
         <div class="col-md-4">
@@ -181,7 +185,8 @@ if(isset($_POST['delete-comment'])) {
                 <a data-fancybox="gallery" href="<?php echo $dir.$file?>">
                 <img src="<?php echo $dir.$file?>" class="img-fluid" alt="<?php echo $file ?>">
                 </a>
-                <?php 
+                <?php
+                    // показываем кнопку удалить если изображение добавил авторизированный пользователь 
                     if ($auth && $userUploadId == $_COOKIE["id"])
                      {
                 ?>
@@ -194,14 +199,15 @@ if(isset($_POST['delete-comment'])) {
                 ?>
                 <div class="thumbnail" id="comments-block">
                     <h3>Комментарии:</h3>
-                    <?php 
+                    <?php
+                        // выводим комментарии по очереди 
                         if ($comments){
                             foreach ($comments as $comment){
-                            $commentUserId = $comment['user_id'];
-                            $commentUser = getUserById($commentUserId);
-                            $commentText = $comment['comment'];
-                            $commentDate = date_create($comment['create_date']);
-                            $commentId = $comment['id'];
+                            $commentUserId = $comment['user_id'];                   //id пользователя
+                            $commentUser = getUserById($commentUserId);             //логин
+                            $commentText = $comment['comment'];                     //текст комментария
+                            $commentDate = date_create($comment['create_date']);    //дата создания комментария
+                            $commentId = $comment['id'];                            //id комментария
                     ?>
                     <div id="comments">
                         <div class="row">
@@ -210,7 +216,8 @@ if(isset($_POST['delete-comment'])) {
                         </div>
                         <div class="row">
                             <div class="col col-md-10 comment-text" ><?php echo $commentText;?></div>
-                            <?php 
+                            <?php
+                                // показываем кнопку удалить если комментарий добавил авторизированный пользователь  
                                 if ($auth && $commentUserId == $_COOKIE["id"])
                                 {   
                             ?>
@@ -234,7 +241,8 @@ if(isset($_POST['delete-comment'])) {
                 </div>
                 <form action="<?php echo URL; ?>" method="post">
                     <div class="form-group">
-                        <?php 
+                        <?php
+                            //добавлем возможность оставить комментарий авторизованному пользователю 
                             if ($auth) {
 
                         ?>
@@ -257,7 +265,9 @@ if(isset($_POST['delete-comment'])) {
   <div class="container pt-4">
     <h1 class="mb-4">Загрузка файлов</h1>
  
-    <?php if (!empty($errors)): ?>
+    <?php
+        //выводим ошибки, если они есть 
+        if (!empty($errors)): ?>
         <div class="alert alert-danger">
             <ul>
                 <?php foreach ($errors as $error): ?>
@@ -269,7 +279,8 @@ if(isset($_POST['delete-comment'])) {
  
     <?php if (!empty($_FILES) && empty($errors)): ?>
         <div class="alert alert-success">Файлы успешно загружены</div>
-    <?php endif; 
+    <?php endif;
+        //показываем поле для загрузки изображений авторизованным пользователям 
           if ($auth){ 
     ?>
     <form action="<?php echo URL; ?>" method="post" enctype="multipart/form-data">
