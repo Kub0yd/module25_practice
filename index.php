@@ -161,6 +161,7 @@ if(isset($_POST['delete-comment'])) {
       $dir = UPLOAD_DIR."/";
 
       // Получаем список файлов в папке исключая файлы с недопустимыми расширениями (если вручную загрузили например)
+      
       $files = array_filter(scandir($dir), 
         function($file) {
         $dir = UPLOAD_DIR."/";
