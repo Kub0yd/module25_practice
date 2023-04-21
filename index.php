@@ -160,12 +160,15 @@ if(isset($_POST['delete-comment'])) {
       // Путь к папке с изображениями
       $dir = UPLOAD_DIR."/";
 
-      // Получаем список файлов в папке
-      $files = scandir($dir);
-
-      // Удаляем первые два элемента массива (".", "..")
-      $files = array_slice($files, 2);
-
+      // Получаем список файлов в папке исключая файлы с недопустимыми расширениями (если вручную загрузили например)
+      $files = array_filter(scandir($dir), 
+        function($file) {
+        $dir = UPLOAD_DIR."/";
+        $type = mime_content_type($dir . $file);
+        return in_array($type, ALLOWED_TYPES);
+        }
+     );
+    
       // Разбиваем массив файлов на массивы по 3 элемента (хочу, чтобы изображения выводились в ряд по 3 элемента)
       $chunks = array_chunk(array_reverse($files), 3);
 
